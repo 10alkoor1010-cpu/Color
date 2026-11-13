@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>أداة استخراج اللون من الصور</title>
+
+  <!-- PWA & App Icons -->
+  <meta name="theme-color" content="#090A0F" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="مستخرج الألوان" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-base: #090A0F;
+      --bg-surface: rgba(16, 19, 28, 0.74);
+      --bg-card: rgba(21, 25, 37, 0.82);
+      --bg-card-hover: rgba(28, 34, 50, 0.94);
+      --turq: #00E5D1;
+      --turq-mid: #14B8A6;
+      --turq-soft: rgba(0, 229, 209, 0.12);
+      --turq-border: rgba(0, 229, 209, 0.25);
+      --pink: #FF4D8D;
+      --text-main: #F3F6FA;
+      --text-muted: #8B95A8;
+      --border-subtle: rgba(255, 255, 255, 0.07);
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --shadow-glow: 0 20px 50px -15px rgba(0, 0, 0, 0.75);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+      line-height: 1.5;
+    }
+
+    /* Ambient Background & Subtle Transparent Bunnies Watermark */
+    .ambient-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(0, 229, 209, 0.075) 0%, transparent 45%),
+        radial-gradient(circle at 85% 82%, rgba(255, 77, 141, 0.06) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, #0D1018 0%, #090A0F 100%);
+    }
+
+    .bg-watermark {
+      position: fixed;
+      top: 52%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(70vw, 540px);
+      height: min(70vw, 540px);
+      opacity: 0.038;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      background: rgba(9, 10, 15, 0.7);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .header-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 13px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text-main);
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+      background: transparent;
+      transition: transform 0.3s ease;
+    }
+
+    .brand:hover .brand-logo {
+      transform: translateY(-2px) scale(1.05);
+    }
+
+    .brand-title {
+      font-size: clamp(1.02rem, 2.2vw, 1.28rem);
+      font-weight: 800;
+      background: linear-gradient(120deg, #FFFFFF 20%, #87FFF4 65%, #FF8AB5 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-ghost, .btn-install {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 39px;
+      padding: 0 14px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 0.86rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.22s ease;
+      border: 1px solid var(--border-subtle);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-main);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--turq-border);
+      background: var(--turq-soft);
+      color: var(--turq);
+    }
+
+    .btn-install {
+      display: none;
+      border-color: rgba(0, 229, 209, 0.42);
+      background: linear-gradient(135deg, rgba(0, 229, 209, 0.16), rgba(255, 77, 141, 0.14));
+      color: #A8FFF7;
+    }
+
+    .btn-install.visible {
+      display: inline-flex;
+    }
+
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 20px 64px;
+    }
+
+    /* Upload Stage */
+    .upload-stage {
+      min-height: calc(100vh - 150px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .dropzone {
+      width: 100%;
+      max-width: 560px;
+      padding: 52px 26px;
+      border-radius: 28px;
+      background: var(--bg-surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1.5px dashed rgba(0, 229, 209, 0.34);
+      box-shadow: var(--shadow-glow);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .dropzone:hover, .dropzone.drag-over {
+      transform: translateY(-4px);
+      border-color: var(--turq);
+      box-shadow: 0 24px 60px -12px rgba(0, 229, 209, 0.22), 0 0 0 1px rgba(255, 77, 141, 0.24);
+    }
+
+    .dropzone.drag-over {
+      background: rgba(0, 229, 209, 0.08);
+    }
+
+    .upload-icon-ring {
+      width: 72px;
+      height: 72px;
+      border-radius: 22px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, rgba(0, 229, 209, 0.14), rgba(255, 77, 141, 0.10));
+      border: 1px solid rgba(0, 229, 209, 0.28);
+      color: var(--turq);
+    }
+
+    .upload-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 11px 26px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--turq) 0%, var(--turq-mid) 100%);
+      color: #051314;
+      font-weight: 800;
+      font-size: 0.96rem;
+      box-shadow: 0 10px 26px -6px rgba(0, 229, 209, 0.45);
+    }
+
+    .upload-formats {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .dot-pink {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--pink);
+    }
+
+    .samples-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .sample-thumb {
+      width: 68px;
+      height: 68px;
+      border-radius: 17px;
+      overflow: hidden;
+      border: 1.5px solid var(--border-subtle);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      background: #121520;
+    }
+
+    .sample-thumb canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .sample-thumb:hover {
+      transform: translateY(-3px) scale(1.06);
+      border-color: var(--turq);
+    }
+
+    /* Studio Workspace */
+    .studio-grid {
+      display: none;
+      grid-template-columns: minmax(320px, 440px) 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .studio-grid.active {
+      display: grid;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @media (max-width: 960px) {
+      .studio-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--bg-surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .viewer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .pill-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: var(--turq-soft);
+      border: 1px solid var(--turq-border);
+      color: var(--turq);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .canvas-stage {
+      position: relative;
+      width: 100%;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: #06070B;
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: crosshair;
+      user-select: none;
+      touch-action: none;
+    }
+
+    #previewImg {
+      display: block;
+      max-width: 100%;
+      max-height: 460px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    .picker-pin {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2.5px solid #FFFFFF;
+      box-shadow: 0 0 0 2px #090A0F, 0 0 18px rgba(0, 229, 209, 0.85);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      display: none;
+      z-index: 10;
+    }
+
+    .picker-pin.visible {
+      display: block;
+    }
+
+    .magnifier-loupe {
+      position: absolute;
+      width: 104px;
+      height: 104px;
+      border-radius: 50%;
+      border: 2.5px solid var(--turq);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.75), 0 0 0 2px rgba(9, 10, 15, 0.9);
+      pointer-events: none;
+      display: none;
+      overflow: hidden;
+      z-index: 15;
+      transform: translate(-50%, -122%);
+      background: #090A0F;
+    }
+
+    .magnifier-loupe.visible {
+      display: block;
+    }
+
+    .magnifier-loupe canvas {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+    }
+
+    .magnifier-reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 12px;
+      height: 12px;
+      transform: translate(-50%, -50%);
+      border: 1.5px solid #FFFFFF;
+      box-shadow: 0 0 0 1px #000000;
+      border-radius: 2px;
+    }
+
+    .picked-card {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 77, 141, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .picked-main {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      min-width: 0;
+    }
+
+    .picked-swatch {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      flex-shrink: 0;
+      background: var(--turq);
+      border: 1.5px solid rgba(255, 255, 255, 0.22);
+    }
+
+    .picked-meta {
+      min-width: 0;
+    }
+
+    .picked-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--pink);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .picked-name {
+      font-size: 0.96rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .picked-codes {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+
+    .palette-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .count-pills {
+      display: inline-flex;
+      padding: 4px;
+      border-radius: 13px;
+      background: rgba(9, 10, 15, 0.75);
+      border: 1px solid var(--border-subtle);
+      gap: 4px;
+    }
+
+    .count-btn {
+      min-width: 38px;
+      height: 32px;
+      padding: 0 11px;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .count-btn.active {
+      background: linear-gradient(135deg, var(--turq), var(--turq-mid));
+      color: #061314;
+      box-shadow: 0 4px 14px rgba(0, 229, 209, 0.35);
+    }
+
+    .dist-bar {
+      width: 100%;
+      height: 16px;
+      border-radius: 999px;
+      overflow: hidden;
+      display: flex;
+      background: #0B0D14;
+      border: 1px solid var(--border-subtle);
+      margin-bottom: 20px;
+      gap: 2px;
+      padding: 2px;
+    }
+
+    .dist-seg {
+      height: 100%;
+      border-radius: 999px;
+      transition: flex-grow 0.55s cubic-bezier(0.22, 1, 0.36, 1), transform 0.2s ease;
+      cursor: pointer;
+    }
+
+    .dist-seg:hover, .dist-seg.highlighted {
+      transform: scaleY(1.18);
+      filter: brightness(1.15);
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 15px;
+    }
+
+    .color-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      transform: translateY(18px) scale(0.97);
+      animation: cardReveal 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .color-card:hover, .color-card.highlighted {
+      transform: translateY(-4px);
+      border-color: var(--turq-border);
+      background: var(--bg-card-hover);
+      box-shadow: 0 16px 34px -10px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(0, 229, 209, 0.18);
+    }
+
+    @keyframes cardReveal {
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .swatch-top {
+      height: 98px;
+      width: 100%;
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 10px 12px;
+      cursor: pointer;
+    }
+
+    .pct-pill {
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.76rem;
+      font-weight: 600;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      background: rgba(9, 10, 15, 0.46);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .quick-copy-fab {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(9, 10, 15, 0.45);
+      backdrop-filter: blur(10px);
+      color: #FFFFFF;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .quick-copy-fab:hover {
+      background: var(--turq);
+      color: #051314;
+      border-color: var(--turq);
+      transform: scale(1.08);
+    }
+
+    .card-body {
+      padding: 13px 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .color-names {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .name-ar {
+      font-size: 0.96rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .name-en {
+      font-size: 0.74rem;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .code-chips {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .code-chip {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: rgba(9, 10, 15, 0.62);
+      border: 1px solid var(--border-subtle);
+      color: #DCE3EE;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.77rem;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      direction: ltr;
+    }
+
+    .code-chip:hover {
+      border-color: var(--turq-border);
+      background: rgba(0, 229, 209, 0.08);
+      color: #FFFFFF;
+    }
+
+    .code-chip.copied {
+      border-color: var(--turq);
+      background: rgba(0, 229, 209, 0.16);
+      color: var(--turq);
+    }
+
+    .chip-sm {
+      padding: 5px 10px;
+      border-radius: 9px;
+      background: rgba(9, 10, 15, 0.68);
+      border: 1px solid var(--border-subtle);
+      color: #E2E8F0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.76rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      direction: ltr;
+      transition: all 0.18s ease;
+    }
+
+    .chip-sm:hover {
+      border-color: var(--turq);
+      color: var(--turq);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(90px);
+      z-index: 90;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 20px;
+      border-radius: 999px;
+      background: rgba(16, 20, 30, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(0, 229, 209, 0.45);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.75);
+      color: #FFFFFF;
+      font-size: 0.88rem;
+      font-weight: 700;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .toast-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 255, 255, 0.4);
+    }
+
+    #fileInput {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-bg"></div>
+  <!-- Subtle Transparent Bunnies Watermark -->
+  <svg class="bg-watermark" viewBox="0 0 512 512" fill="none" aria-hidden="true">
+    <defs>
+    <linearGradient id="bunny-turq" x1="110" y1="85" x2="265" y2="425" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4DF9E8"/>
+      <stop offset="55%" stop-color="#00E5D1"/>
+      <stop offset="100%" stop-color="#0D9488"/>
+    </linearGradient>
+    <linearGradient id="bunny-pink" x1="255" y1="85" x2="410" y2="425" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF7EAA"/>
+      <stop offset="55%" stop-color="#FF4D8D"/>
+      <stop offset="100%" stop-color="#DB2777"/>
+    </linearGradient>
+  </defs>
+  <path d="M 148.0 222.0 C 126.0 180.0, 106.0 124.0, 122.0 108.0 C 136.0 94.0, 160.0 130.0, 174.0 186.0 C 176.0 132.0, 190.0 86.0, 210.0 88.0 C 230.0 90.0, 230.0 144.0, 218.0 200.0 C 240.0 218.0, 246.0 250.0, 234.0 282.0 C 222.0 314.0, 262.0 336.0, 274.0 366.0 C 284.0 392.0, 262.0 424.0, 222.0 424.0 L 148.0 424.0 C 102.0 424.0, 84.0 382.0, 94.0 330.0 C 102.0 286.0, 124.0 248.0, 148.0 222.0 Z" fill="url(#bunny-turq)"/>
+  <path d="M 294.0 200.0 C 282.0 144.0, 282.0 90.0, 302.0 88.0 C 322.0 86.0, 336.0 132.0, 338.0 186.0 C 352.0 130.0, 376.0 94.0, 390.0 108.0 C 406.0 124.0, 386.0 180.0, 364.0 222.0 C 388.0 248.0, 410.0 286.0, 418.0 330.0 C 428.0 382.0, 410.0 424.0, 364.0 424.0 L 278.0 424.0 C 296.0 404.0, 300.0 376.0, 288.0 352.0 C 274.0 324.0, 240.0 304.0, 250.0 266.0 C 258.0 236.0, 274.0 214.0, 294.0 200.0 Z" fill="url(#bunny-pink)"/>
+  </svg>
+
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 512 512" width="42" height="42" fill="none">
+            <defs>
+    <linearGradient id="bunny-turq" x1="110" y1="85" x2="265" y2="425" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4DF9E8"/>
+      <stop offset="55%" stop-color="#00E5D1"/>
+      <stop offset="100%" stop-color="#0D9488"/>
+    </linearGradient>
+    <linearGradient id="bunny-pink" x1="255" y1="85" x2="410" y2="425" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF7EAA"/>
+      <stop offset="55%" stop-color="#FF4D8D"/>
+      <stop offset="100%" stop-color="#DB2777"/>
+    </linearGradient>
+  </defs>
+  <path d="M 148.0 222.0 C 126.0 180.0, 106.0 124.0, 122.0 108.0 C 136.0 94.0, 160.0 130.0, 174.0 186.0 C 176.0 132.0, 190.0 86.0, 210.0 88.0 C 230.0 90.0, 230.0 144.0, 218.0 200.0 C 240.0 218.0, 246.0 250.0, 234.0 282.0 C 222.0 314.0, 262.0 336.0, 274.0 366.0 C 284.0 392.0, 262.0 424.0, 222.0 424.0 L 148.0 424.0 C 102.0 424.0, 84.0 382.0, 94.0 330.0 C 102.0 286.0, 124.0 248.0, 148.0 222.0 Z" fill="url(#bunny-turq)"/>
+  <path d="M 294.0 200.0 C 282.0 144.0, 282.0 90.0, 302.0 88.0 C 322.0 86.0, 336.0 132.0, 338.0 186.0 C 352.0 130.0, 376.0 94.0, 390.0 108.0 C 406.0 124.0, 386.0 180.0, 364.0 222.0 C 388.0 248.0, 410.0 286.0, 418.0 330.0 C 428.0 382.0, 410.0 424.0, 364.0 424.0 L 278.0 424.0 C 296.0 404.0, 300.0 376.0, 288.0 352.0 C 274.0 324.0, 240.0 304.0, 250.0 266.0 C 258.0 236.0, 274.0 214.0, 294.0 200.0 Z" fill="url(#bunny-pink)"/>
+          </svg>
+        </div>
+        <h1 class="brand-title">أداة استخراج اللون من الصور</h1>
+      </div>
+
+      <div class="header-actions">
+        <button id="installBtn" class="btn-install" type="button">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>تثبيت التطبيق</span>
+        </button>
+
+        <button id="newImageBtn" class="btn-ghost" type="button" style="display:none;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>صورة جديدة</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <input type="file" id="fileInput" accept="image/*" />
+
+    <section id="uploadStage" class="upload-stage">
+      <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="رفع صورة">
+        <div class="upload-icon-ring">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+
+        <div class="upload-cta">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>اختر صورة أو اسحبها هنا</span>
+        </div>
+
+        <div class="upload-formats">
+          <span>PNG</span>
+          <span class="dot-pink"></span>
+          <span>JPG</span>
+          <span class="dot-pink"></span>
+          <span>WEBP</span>
+          <span class="dot-pink"></span>
+          <span>SVG</span>
+        </div>
+      </div>
+
+      <div class="samples-row" id="samplesRow"></div>
+    </section>
+
+    <section id="studioGrid" class="studio-grid">
+      <div class="panel">
+        <div class="viewer-header">
+          <span class="pill-tag">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg>
+            <span>القطّارة اليدوية</span>
+          </span>
+
+          <button id="changeImgCardBtn" class="btn-ghost" type="button" style="height:34px; padding:0 12px; font-size:0.8rem;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>تغيير</span>
+          </button>
+        </div>
+
+        <div id="canvasStage" class="canvas-stage">
+          <img id="previewImg" alt="الصورة المرفوعة" />
+          <div id="pickerPin" class="picker-pin"></div>
+          <div id="magnifierLoupe" class="magnifier-loupe">
+            <canvas id="loupeCanvas" width="104" height="104"></canvas>
+            <div class="magnifier-reticle"></div>
+          </div>
+        </div>
+
+        <div class="picked-card">
+          <div class="picked-main">
+            <div id="pickedSwatch" class="picked-swatch"></div>
+            <div class="picked-meta">
+              <div class="picked-badge">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+                <span>اللون المحدد</span>
+              </div>
+              <div id="pickedName" class="picked-name">تركوازي مشرق</div>
+            </div>
+          </div>
+
+          <div class="picked-codes">
+            <button id="pickedHexBtn" class="chip-sm" type="button" data-copy="#00E5D1">
+              <span id="pickedHexText">#00E5D1</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+            <button id="pickedRgbBtn" class="chip-sm" type="button" data-copy="rgb(0, 229, 209)">
+              <span id="pickedRgbText">0, 229, 209</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="palette-topbar">
+          <span class="pill-tag">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+            <span>الألوان المستخرجة</span>
+          </span>
+
+          <div class="count-pills" id="countPills">
+            <button type="button" class="count-btn" data-k="6">6</button>
+            <button type="button" class="count-btn active" data-k="8">8</button>
+            <button type="button" class="count-btn" data-k="10">10</button>
+          </div>
+        </div>
+
+        <div id="distBar" class="dist-bar"></div>
+        <div id="cardsGrid" class="cards-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite">
+    <span id="toastDot" class="toast-dot"></span>
+    <span id="toastText">تم النسخ</span>
+  </div>
+
+  <canvas id="workCanvas" style="display:none;"></canvas>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+
+    let deferredPrompt = null;
+    const installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.classList.add('visible');
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.classList.remove('visible');
+    });
+
+    const COLOR_DICT = [
+      [0, 0, 0, "أسود حالك", "Pure Black"],
+      [15, 17, 26, "أسود ليلي", "Obsidian Night"],
+      [28, 32, 46, "فحمي داكن", "Dark Charcoal"],
+      [55, 65, 81, "رمادي أردوازي", "Slate Gray"],
+      [107, 114, 128, "رمادي محايد", "Neutral Gray"],
+      [156, 163, 175, "فضي ناعم", "Cool Silver"],
+      [209, 213, 219, "رمادي ضبابي", "Mist Gray"],
+      [243, 244, 246, "أبيض لؤلؤي", "Pearl White"],
+      [255, 255, 255, "أبيض ناصع", "Pure White"],
+      [255, 250, 240, "عاجي دافئ", "Warm Ivory"],
+      [245, 235, 220, "بيج رملي", "Sand Beige"],
+      [210, 180, 140, "حنطي فاتح", "Warm Tan"],
+      [161, 118, 76, "كراميل خشبي", "Caramel Wood"],
+      [111, 78, 55, "بني قهوة", "Coffee Brown"],
+      [68, 42, 28, "شوكولاتة داكنة", "Dark Espresso"],
+      [220, 38, 38, "أحمر قاني", "Crimson Red"],
+      [153, 27, 27, "خمري داكن", "Deep Burgundy"],
+      [239, 68, 68, "أحمر مرجاني", "Coral Red"],
+      [251, 113, 133, "وردي زهري", "Rose Pink"],
+      [255, 77, 141, "وردي نيون", "Vibrant Pink"],
+      [236, 72, 153, "فوشيا مشرق", "Bright Fuchsia"],
+      [190, 24, 93, "توتي عميق", "Deep Berry"],
+      [253, 164, 175, "وردي باستيل", "Pastel Blush"],
+      [249, 115, 22, "برتقالي حيوي", "Vivid Orange"],
+      [234, 88, 12, "يوسفي محروق", "Burnt Tangerine"],
+      [251, 146, 60, "مشمشي دافئ", "Warm Apricot"],
+      [253, 186, 116, "خوخي ناعم", "Soft Peach"],
+      [245, 158, 11, "كهرماني ذهبي", "Amber Gold"],
+      [234, 179, 8, "أصفر شمسي", "Solar Yellow"],
+      [250, 204, 21, "أصفر ليموني", "Lemon Yellow"],
+      [254, 240, 138, "أصفر كريمي", "Cream Yellow"],
+      [132, 204, 22, "أخضر ليموني", "Lime Green"],
+      [34, 197, 94, "أخضر زمردي", "Emerald Green"],
+      [22, 163, 74, "أخضر عشبي", "Fresh Green"],
+      [21, 128, 61, "أخضر غابات", "Forest Green"],
+      [6, 78, 59, "أخضر ملكي داكن", "Deep Pine"],
+      [16, 185, 129, "أخضر نعناعي", "Mint Emerald"],
+      [110, 231, 183, "نعناعي فاتح", "Soft Mint"],
+      [20, 184, 166, "تركوازي بحري", "Teal Turquoise"],
+      [0, 229, 209, "تركوازي مشرق", "Bright Turquoise"],
+      [13, 148, 136, "تركوازي عميق", "Deep Teal"],
+      [17, 94, 89, "تركوازي ليلي", "Dark Teal"],
+      [153, 246, 228, "أكوا شفاف", "Aqua Mist"],
+      [6, 182, 212, "سماوي سيان", "Vibrant Cyan"],
+      [34, 211, 238, "أزرق ثلجي", "Ice Cyan"],
+      [14, 165, 233, "أزرق سماوي", "Sky Blue"],
+      [56, 189, 248, "سماوي صافي", "Clear Sky"],
+      [59, 130, 246, "أزرق ملكي", "Royal Blue"],
+      [29, 78, 216, "أزرق كوبالت", "Cobalt Blue"],
+      [30, 58, 138, "كحلي عميق", "Navy Blue"],
+      [23, 37, 84, "أزرق منتصف الليل", "Midnight Blue"],
+      [99, 102, 241, "نيلي عصري", "Indigo Blue"],
+      [139, 92, 246, "بنفسجي لافندر", "Vibrant Violet"],
+      [124, 58, 237, "أرجواني ملكي", "Royal Purple"],
+      [88, 28, 135, "بنفسجي داكن", "Deep Plum"],
+      [196, 181, 253, "ليلكي ناعم", "Soft Lilac"],
+      [217, 70, 239, "أوركيد مشرق", "Electric Orchid"]
+    ];
+
+    function getNearestColorName(r, g, b) {
+      let bestDist = Infinity;
+      let best = ["لون مخصص", "Custom Color"];
+      for (let i = 0; i < COLOR_DICT.length; i++) {
+        const [cr, cg, cb, ar, en] = COLOR_DICT[i];
+        const dr = r - cr, dg = g - cg, db = b - cb;
+        const dist = dr * dr * 0.30 + dg * dg * 0.59 + db * db * 0.11;
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = [ar, en];
+        }
+      }
+      return best;
+    }
+
+    function rgbToHex(r, g, b) {
+      return "#" + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("").toUpperCase();
+    }
+
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const uploadStage = document.getElementById('uploadStage');
+    const studioGrid = document.getElementById('studioGrid');
+    const newImageBtn = document.getElementById('newImageBtn');
+    const changeImgCardBtn = document.getElementById('changeImgCardBtn');
+    const previewImg = document.getElementById('previewImg');
+    const canvasStage = document.getElementById('canvasStage');
+    const workCanvas = document.getElementById('workCanvas');
+    const workCtx = workCanvas.getContext('2d', { willReadFrequently: true });
+    const loupeCanvas = document.getElementById('loupeCanvas');
+    const loupeCtx = loupeCanvas.getContext('2d');
+    const magnifierLoupe = document.getElementById('magnifierLoupe');
+    const pickerPin = document.getElementById('pickerPin');
+    const distBar = document.getElementById('distBar');
+    const cardsGrid = document.getElementById('cardsGrid');
+    const countPills = document.getElementById('countPills');
+
+    let currentK = 8;
+    let currentImageLoaded = false;
+
+    function initSampleThumbnails() {
+      const row = document.getElementById('samplesRow');
+      const configs = [
+        (ctx, w, h) => {
+          const g = ctx.createLinearGradient(0, 0, w, h);
+          g.addColorStop(0, '#090A0F');
+          g.addColorStop(0.5, '#0D4F4B');
+          g.addColorStop(1, '#00E5D1');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, w, h);
+          ctx.fillStyle = '#FF4D8D';
+          ctx.beginPath();
+          ctx.arc(w * 0.72, h * 0.3, w * 0.18, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.beginPath();
+          ctx.arc(w * 0.32, h * 0.68, w * 0.14, 0, Math.PI * 2);
+          ctx.fill();
+        },
+        (ctx, w, h) => {
+          const g = ctx.createLinearGradient(0, h, w, 0);
+          g.addColorStop(0, '#1E1B4B');
+          g.addColorStop(0.5, '#DB2777');
+          g.addColorStop(1, '#F59E0B');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, w, h);
+          ctx.fillStyle = '#06B6D4';
+          ctx.fillRect(w * 0.15, h * 0.55, w * 0.7, h * 0.25);
+        },
+        (ctx, w, h) => {
+          const g = ctx.createRadialGradient(w * 0.35, h * 0.35, 10, w * 0.5, h * 0.5, w * 0.75);
+          g.addColorStop(0, '#A7F3D0');
+          g.addColorStop(0.45, '#14B8A6');
+          g.addColorStop(1, '#064E3B');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, w, h);
+          ctx.fillStyle = '#FDE047';
+          ctx.beginPath();
+          ctx.arc(w * 0.68, h * 0.66, w * 0.16, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      ];
+
+      configs.forEach((drawFn) => {
+        const thumb = document.createElement('button');
+        thumb.type = 'button';
+        thumb.className = 'sample-thumb';
+        const c = document.createElement('canvas');
+        c.width = 240;
+        c.height = 240;
+        drawFn(c.getContext('2d'), 240, 240);
+        thumb.appendChild(c);
+        thumb.addEventListener('click', () => loadImageSource(c.toDataURL('image/png')));
+        row.appendChild(thumb);
+      });
+    }
+    initSampleThumbnails();
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+    newImageBtn.addEventListener('click', () => fileInput.click());
+    changeImgCardBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+    });
+
+    ['dragenter', 'dragover'].forEach(ev => {
+      dropzone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        dropzone.classList.add('drag-over');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(ev => {
+      dropzone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+      });
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.type.startsWith('image/')) handleFile(file);
+    });
+
+    window.addEventListener('paste', (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) handleFile(file);
+          break;
+        }
+      }
+    });
+
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => loadImageSource(ev.target.result);
+      reader.readAsDataURL(file);
+    }
+
+    function loadImageSource(src) {
+      previewImg.onload = () => {
+        currentImageLoaded = true;
+        uploadStage.style.display = 'none';
+        studioGrid.classList.add('active');
+        newImageBtn.style.display = 'inline-flex';
+        pickerPin.classList.remove('visible');
+
+        const maxDim = 900;
+        let w = previewImg.naturalWidth || 400;
+        let h = previewImg.naturalHeight || 400;
+        if (w > maxDim || h > maxDim) {
+          const ratio = Math.min(maxDim / w, maxDim / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        workCanvas.width = w;
+        workCanvas.height = h;
+        workCtx.clearRect(0, 0, w, h);
+        workCtx.drawImage(previewImg, 0, 0, w, h);
+
+        const centerPx = workCtx.getImageData(Math.floor(w / 2), Math.floor(h / 2), 1, 1).data;
+        updatePickedColor(centerPx[0], centerPx[1], centerPx[2]);
+
+        runExtraction();
+      };
+      previewImg.src = src;
+    }
+
+    function extractDominantColors(k) {
+      const w = workCanvas.width;
+      const h = workCanvas.height;
+      const imgData = workCtx.getImageData(0, 0, w, h).data;
+      const pixels = [];
+      const step = Math.max(1, Math.floor((w * h) / 14000));
+
+      for (let i = 0; i < imgData.length; i += 4 * step) {
+        if (imgData[i + 3] < 128) continue;
+        pixels.push([imgData[i], imgData[i + 1], imgData[i + 2]]);
+      }
+
+      if (pixels.length === 0) {
+        return [{ rgb: [0, 229, 209], pct: 100 }];
+      }
+
+      const centroids = [pixels[Math.floor(Math.random() * pixels.length)]];
+      while (centroids.length < k) {
+        const dists = pixels.map(p => {
+          let minD = Infinity;
+          for (const c of centroids) {
+            const d = (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2;
+            if (d < minD) minD = d;
+          }
+          return minD;
+        });
+        const sumD = dists.reduce((a, b) => a + b, 0);
+        if (sumD === 0) break;
+        let r = Math.random() * sumD;
+        let chosen = pixels[0];
+        for (let i = 0; i < pixels.length; i++) {
+          r -= dists[i];
+          if (r <= 0) {
+            chosen = pixels[i];
+            break;
+          }
+        }
+        centroids.push([...chosen]);
+      }
+
+      const actualK = centroids.length;
+      const counts = new Array(actualK).fill(0);
+
+      for (let iter = 0; iter < 12; iter++) {
+        const sums = Array.from({ length: actualK }, () => [0, 0, 0]);
+        counts.fill(0);
+
+        for (let i = 0; i < pixels.length; i++) {
+          const p = pixels[i];
+          let bestIdx = 0;
+          let bestDist = Infinity;
+          for (let c = 0; c < actualK; c++) {
+            const cent = centroids[c];
+            const d = (p[0] - cent[0]) ** 2 + (p[1] - cent[1]) ** 2 + (p[2] - cent[2]) ** 2;
+            if (d < bestDist) {
+              bestDist = d;
+              bestIdx = c;
+            }
+          }
+          sums[bestIdx][0] += p[0];
+          sums[bestIdx][1] += p[1];
+          sums[bestIdx][2] += p[2];
+          counts[bestIdx]++;
+        }
+
+        for (let c = 0; c < actualK; c++) {
+          if (counts[c] > 0) {
+            centroids[c][0] = Math.round(sums[c][0] / counts[c]);
+            centroids[c][1] = Math.round(sums[c][1] / counts[c]);
+            centroids[c][2] = Math.round(sums[c][2] / counts[c]);
+          }
+        }
+      }
+
+      const total = counts.reduce((a, b) => a + b, 0) || 1;
+      return centroids
+        .map((rgb, idx) => ({
+          rgb,
+          count: counts[idx],
+          pct: (counts[idx] / total) * 100
+        }))
+        .filter(item => item.count > 0)
+        .sort((a, b) => b.count - a.count);
+    }
+
+    function runExtraction() {
+      if (!currentImageLoaded) return;
+      renderPalette(extractDominantColors(currentK));
+    }
+
+    function renderPalette(palette) {
+      distBar.innerHTML = '';
+      cardsGrid.innerHTML = '';
+
+      palette.forEach((item, idx) => {
+        const [r, g, b] = item.rgb;
+        const hex = rgbToHex(r, g, b);
+        const rgbStr = `rgb(${r}, ${g}, ${b})`;
+        const [nameAr, nameEn] = getNearestColorName(r, g, b);
+        const pctLabel = item.pct < 1 ? item.pct.toFixed(1) + '%' : Math.round(item.pct) + '%';
+
+        const seg = document.createElement('div');
+        seg.className = 'dist-seg';
+        seg.style.backgroundColor = hex;
+        seg.style.flexGrow = Math.max(item.pct, 2);
+        seg.title = `${nameAr} (${pctLabel})`;
+        distBar.appendChild(seg);
+
+        const card = document.createElement('article');
+        card.className = 'color-card';
+        card.style.animationDelay = `${idx * 55}ms`;
+
+        card.innerHTML = `
+          <div class="swatch-top" style="background-color: ${hex};" data-copy="${hex}">
+            <span class="pct-pill">${pctLabel}</span>
+            <button type="button" class="quick-copy-fab" data-copy="${hex}" aria-label="نسخ الكود">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="color-names">
+              <span class="name-ar">${nameAr}</span>
+              <span class="name-en">${nameEn}</span>
+            </div>
+            <div class="code-chips">
+              <button type="button" class="code-chip" data-copy="${hex}">
+                <span>${hex}</span>
+                <svg class="copy-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+              <button type="button" class="code-chip" data-copy="${rgbStr}">
+                <span>${rgbStr}</span>
+                <svg class="copy-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </div>
+          </div>
+        `;
+
+        seg.addEventListener('mouseenter', () => card.classList.add('highlighted'));
+        seg.addEventListener('mouseleave', () => card.classList.remove('highlighted'));
+        card.addEventListener('mouseenter', () => seg.classList.add('highlighted'));
+        card.addEventListener('mouseleave', () => seg.classList.remove('highlighted'));
+
+        card.querySelectorAll('[data-copy]').forEach(el => {
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const val = el.getAttribute('data-copy');
+            copyColorCode(val, hex, el);
+          });
+        });
+
+        cardsGrid.appendChild(card);
+      });
+    }
+
+    countPills.addEventListener('click', (e) => {
+      const btn = e.target.closest('.count-btn');
+      if (!btn) return;
+      countPills.querySelectorAll('.count-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentK = parseInt(btn.dataset.k, 10);
+      runExtraction();
+    });
+
+    function getPointerCoords(e) {
+      const stageRect = canvasStage.getBoundingClientRect();
+      const imgRect = previewImg.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      const relX = Math.max(0, Math.min(imgRect.width - 1, clientX - imgRect.left));
+      const relY = Math.max(0, Math.min(imgRect.height - 1, clientY - imgRect.top));
+
+      const stageX = (imgRect.left - stageRect.left) + relX;
+      const stageY = (imgRect.top - stageRect.top) + relY;
+
+      const canvasX = Math.floor((relX / imgRect.width) * workCanvas.width);
+      const canvasY = Math.floor((relY / imgRect.height) * workCanvas.height);
+
+      return { stageX, stageY, canvasX, canvasY };
+    }
+
+    function inspectPixel(e, lockPin = false) {
+      if (!currentImageLoaded) return;
+      const { stageX, stageY, canvasX, canvasY } = getPointerCoords(e);
+
+      magnifierLoupe.style.left = `${stageX}px`;
+      magnifierLoupe.style.top = `${stageY}px`;
+      magnifierLoupe.classList.add('visible');
+
+      loupeCtx.imageSmoothingEnabled = false;
+      loupeCtx.clearRect(0, 0, 104, 104);
+      const zoomBox = 13;
+      loupeCtx.drawImage(
+        workCanvas,
+        canvasX - Math.floor(zoomBox / 2),
+        canvasY - Math.floor(zoomBox / 2),
+        zoomBox,
+        zoomBox,
+        0,
+        0,
+        104,
+        104
+      );
+
+      if (lockPin) {
+        const px = workCtx.getImageData(canvasX, canvasY, 1, 1).data;
+        const hex = updatePickedColor(px[0], px[1], px[2]);
+        pickerPin.style.left = `${stageX}px`;
+        pickerPin.style.top = `${stageY}px`;
+        pickerPin.style.backgroundColor = hex;
+        pickerPin.classList.add('visible');
+      }
+    }
+
+    let isDraggingPicker = false;
+    canvasStage.addEventListener('pointerdown', (e) => {
+      isDraggingPicker = true;
+      inspectPixel(e, true);
+    });
+    canvasStage.addEventListener('pointermove', (e) => {
+      inspectPixel(e, isDraggingPicker);
+    });
+    window.addEventListener('pointerup', () => {
+      isDraggingPicker = false;
+    });
+    canvasStage.addEventListener('pointerleave', () => {
+      isDraggingPicker = false;
+      magnifierLoupe.classList.remove('visible');
+    });
+
+    function updatePickedColor(r, g, b) {
+      const hex = rgbToHex(r, g, b);
+      const rgbStr = `rgb(${r}, ${g}, ${b})`;
+      const [nameAr] = getNearestColorName(r, g, b);
+
+      document.getElementById('pickedSwatch').style.backgroundColor = hex;
+      document.getElementById('pickedName').textContent = nameAr;
+      document.getElementById('pickedHexText').textContent = hex;
+      document.getElementById('pickedRgbText').textContent = `${r}, ${g}, ${b}`;
+
+      const hexBtn = document.getElementById('pickedHexBtn');
+      const rgbBtn = document.getElementById('pickedRgbBtn');
+      hexBtn.setAttribute('data-copy', hex);
+      rgbBtn.setAttribute('data-copy', rgbStr);
+      return hex;
+    }
+
+    document.getElementById('pickedHexBtn').addEventListener('click', function () {
+      const val = this.getAttribute('data-copy');
+      copyColorCode(val, val, this);
+    });
+    document.getElementById('pickedRgbBtn').addEventListener('click', function () {
+      const val = this.getAttribute('data-copy');
+      const hex = document.getElementById('pickedHexBtn').getAttribute('data-copy');
+      copyColorCode(val, hex, this);
+    });
+
+    let toastTimer = null;
+    function copyColorCode(text, swatchHex, triggerEl) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+      } else {
+        fallbackCopy(text);
+      }
+
+      if (triggerEl && triggerEl.classList.contains('code-chip')) {
+        triggerEl.classList.add('copied');
+        const svg = triggerEl.querySelector('svg');
+        const origHtml = svg ? svg.outerHTML : '';
+        if (svg) {
+          svg.outerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="20 6 9 17 4 12"/></svg>';
+        }
+        setTimeout(() => {
+          triggerEl.classList.remove('copied');
+          const checkSvg = triggerEl.querySelector('svg');
+          if (checkSvg && origHtml) checkSvg.outerHTML = origHtml;
+        }, 1200);
+      }
+
+      const toast = document.getElementById('toast');
+      document.getElementById('toastDot').style.backgroundColor = swatchHex;
+      document.getElementById('toastText').textContent = `تم نسخ ${text}`;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+  </script>
+</body>
+</html>
